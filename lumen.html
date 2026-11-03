@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lumen — Money that moves with you</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Mulish:wght@300;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/lumen.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 26'%3E%3Crect width='24' height='26' rx='6' fill='%232a10b8'/%3E%3Cpath d='M10 5 A 8 8 0 0 0 18 13 M6 13 A 8 8 0 0 1 14 21' fill='none' stroke='white' stroke-width='2.6'/%3E%3C/svg%3E" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <main class="hero">
+    <header class="header">
+      <a href="#" class="logo reveal" style="animation-delay: 0.1s">
+        <svg viewBox="0 0 24 26" fill="none" stroke="#fff" stroke-width="3.6">
+          <path d="M10 2 A 11 11 0 0 0 21 13" />
+          <path d="M3 13 A 11 11 0 0 1 14 24" />
+        </svg>
+        Lumen
+      </a>
+
+      <nav class="nav reveal" id="site-nav" style="animation-delay: 0.2s">
+        <a href="#">Services</a>
+        <a href="#">How it Works</a>
+        <a href="#">Results</a>
+        <a href="#">Contacts</a>
+      </nav>
+
+      <div class="header-actions reveal" style="animation-delay: 0.3s">
+        <a href="#" class="btn header-cta">Get your card <span class="dot"></span></a>
+        <button class="btn menu-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="site-nav">
+          <span></span><span></span>
+        </button>
+      </div>
+    </header>
+
+    <h1 class="title reveal" style="animation-delay: 0.35s">
+      <span>Money that moves</span>
+      <span class="muted">with you</span>
+    </h1>
+
+    <p class="side side--left reveal" style="animation-delay: 0.6s">
+      Pay, save, and send with no hidden fees —<br />
+      all in one app that's always within reach.
+    </p>
+
+    <p class="side side--right reveal" style="animation-delay: 0.7s">
+      No maintenance fees<br /><span class="sep"> · </span>Issued in 2 minutes
+    </p>
+
+    <div class="horizon-line"></div>
+
+    <div class="actions reveal" style="animation-delay: 0.8s">
+      <a href="#" class="btn btn--primary">Get your card <span class="dot"></span></a>
+      <a href="#" class="btn btn--ghost">How it works</a>
+    </div>
+
+    <h2 class="title-bottom reveal" style="animation-delay: 0.5s">
+      <span class="muted">Debit card of</span>
+      <span>the next-generation</span>
+    </h2>
+  </main>
+
+  <script>
+    // mobile menu
+    const header = document.querySelector(".header");
+    const toggle = document.querySelector(".menu-toggle");
+    toggle.addEventListener("click", () => {
+      const open = header.classList.toggle("is-open");
+      toggle.setAttribute("aria-expanded", open);
+      toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+    });
+    document.querySelectorAll(".nav a").forEach((a) => a.addEventListener("click", () => {
+      header.classList.remove("is-open");
+      toggle.setAttribute("aria-expanded", "false");
+    }));
+  </script>
+
+  <script type="module">
+    import * as THREE from "three";
+    import { Reflector } from "three/addons/objects/Reflector.js";
+    import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+    import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+    import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+    import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+    import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+
+    const canvas = document.getElementById("scene");
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+    // ---------- shared GLSL noise ----------
+    const NOISE = /* glsl */ `
+      float hash3(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+      float noise3(vec3 x){
+        vec3 i = floor(x); vec3 f = fract(x); f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(mix(hash3(i), hash3(i + vec3(1,0,0)), f.x), mix(hash3(i + vec3(0,1,0)), hash3(i + vec3(1,1,0)), f.x), f.y),
+                   mix(mix(hash3(i + vec3(0,0,1)), hash3(i + vec3(1,0,1)), f.x), mix(hash3(i + vec3(0,1,1)), hash3(i + vec3(1,1,1)), f.x), f.y), f.z);
+      }
+      float fbm3(vec3 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 5; i++){ v += a * noise3(p); p *= 2.03; a *= 0.5; } return v; }
+    `;
+
+    // ---------- sky dome ----------
+    const sky = new THREE.Mesh(
+      new THREE.SphereGeometry(400, 64, 32),
+      new THREE.ShaderMaterial({
+        side: THREE.BackSide,
+        depthWrite: false,
+        uniforms: { uTime: { value: 0 } },
+        vertexShader: /* glsl */ `
+          varying vec3 vDir;
+          void main(){
+            vDir = position;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }`,
+        fragmentShader: /* glsl */ `
+          uniform float uTime;
+          varying vec3 vDir;
+          ${NOISE}
+          void main(){
+            vec3 d = normalize(vDir);
+            float e = max(d.y, 0.0);
+            vec3 top = vec3(0.16, 0.13, 0.36);
+            vec3 mid = vec3(0.36, 0.27, 0.55);
+            vec3 hor = vec3(0.58, 0.42, 0.68);
+            vec3 col = mix(hor, mid, smoothstep(0.0, 0.10, e));
+            col = mix(col, top, smoothstep(0.08, 0.42, e));
+
+            // soft nebula clouds
+            float n = fbm3(d * 3.2 + vec3(uTime * 0.008, 0.0, uTime * 0.004));
+            float n2 = fbm3(d * 7.0 - vec3(uTime * 0.01));
+            col += vec3(0.28, 0.17, 0.48) * smoothstep(0.42, 0.85, n) * 0.55 * smoothstep(0.02, 0.25, e);
+            col += vec3(0.18, 0.12, 0.35) * smoothstep(0.5, 0.9, n2) * 0.3;
+
+            // pink sunrise glow behind the card
+            float az = atan(d.x, -d.z);
+            float glow = exp(-az * az * 9.0) * exp(-e * 8.0);
+            col += vec3(0.95, 0.5, 0.78) * glow * 0.75;
+            float core = exp(-az * az * 40.0) * exp(-e * 26.0);
+            col += vec3(1.0, 0.78, 0.92) * core * 0.6;
+
+            // thin horizon line
+            col += vec3(1.0, 0.85, 0.96) * exp(-abs(d.y) * 500.0) * 0.15;
+
+            // stars
+            vec3 sp = d * 260.0;
+            vec3 cell = floor(sp);
+            float h = hash3(cell);
+            float star = step(0.93, h) * smoothstep(0.32, 0.0, length(fract(sp) - 0.5));
+            star *= 0.55 + 0.45 * sin(uTime * (1.5 + h * 3.0) + h * 60.0);
+            col += vec3(0.95, 0.9, 1.0) * star * smoothstep(0.03, 0.2, e) * 0.9;
+
+            gl_FragColor = vec4(pow(col, vec3(2.2)), 1.0);
+          }`,
+      })
+    );
+    scene.add(sky);
+
+    // ---------- arch ring ----------
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(7.9, 0.07, 16, 220),
+      new THREE.MeshStandardMaterial({
+        color: 0x3a2560,
+        emissive: 0x6a4290,
+        emissiveIntensity: 0.6,
+        metalness: 0.6,
+        roughness: 0.35,
+      })
+    );
+    ring.position.set(0, 1.3, -25);
+    scene.add(ring);
+
+    // ---------- card ----------
+    function makeCardTexture() {
+      const W = 1024, H = 1480;
+      const c = document.createElement("canvas");
+      c.width = W; c.height = H;
+      const g = c.getContext("2d");
+
+      let gr = g.createLinearGradient(0, 0, W, H);
+      gr.addColorStop(0.0, "#05030f");
+      gr.addColorStop(0.32, "#1a0b63");
+      gr.addColorStop(0.55, "#3417c9");
+      gr.addColorStop(0.78, "#5b3ce0");
+      gr.addColorStop(1.0, "#cbbcf3");
+      g.fillStyle = gr;
+      g.fillRect(0, 0, W, H);
+
+      // dark left side
+      gr = g.createLinearGradient(0, 0, W * 0.55, 0);
+      gr.addColorStop(0, "rgba(0,0,0,0.85)");
+      gr.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = gr;
+      g.fillRect(0, 0, W, H);
+
+      // light bloom bottom-right
+      gr = g.createRadialGradient(W * 0.95, H * 0.95, 0, W * 0.95, H * 0.95, W * 0.75);
+      gr.addColorStop(0, "rgba(230,220,255,0.85)");
+      gr.addColorStop(0.4, "rgba(150,120,240,0.35)");
+      gr.addColorStop(1, "rgba(80,40,220,0)");
+      g.fillStyle = gr;
+      g.fillRect(0, 0, W, H);
+
+      // vertical light streaks
+      const streak = (x, w, a, skew) => {
+        g.save();
+        g.translate(x, 0);
+        g.transform(1, 0, skew, 1, 0, 0);
+        const s = g.createLinearGradient(-w, 0, w, 0);
+        s.addColorStop(0, "rgba(255,255,255,0)");
+        s.addColorStop(0.5, `rgba(225,215,255,${a})`);
+        s.addColorStop(1, "rgba(255,255,255,0)");
+        g.fillStyle = s;
+        g.fillRect(-w, 0, w * 2, H);
+        g.restore();
+      };
+      streak(W * 0.24, 70, 0.22, -0.08);
+      streak(W * 0.62, 120, 0.12, -0.12);
+      streak(W * 0.78, 60, 0.18, -0.15);
+
+      // chip
+      const cx = W * 0.75, cy = H * 0.09, cw = W * 0.12, ch = H * 0.085;
+      gr = g.createLinearGradient(cx, cy, cx + cw, cy + ch);
+      gr.addColorStop(0, "#f4f2fa");
+      gr.addColorStop(0.5, "#c9c4d8");
+      gr.addColorStop(1, "#ece9f5");
+      g.fillStyle = gr;
+      g.beginPath();
+      g.roundRect(cx, cy, cw, ch, 14);
+      g.fill();
+      g.strokeStyle = "rgba(90,80,130,0.75)";
+      g.lineWidth = 5;
+      g.beginPath();
+      for (let i = 1; i < 4; i++) {
+        const y = cy + (ch / 4) * i;
+        g.moveTo(cx + 6, y); g.lineTo(cx + cw - 6, y);
+      }
+      g.moveTo(cx + cw * 0.36, cy + 4); g.lineTo(cx + cw * 0.36, cy + ch - 4);
+      g.moveTo(cx + cw * 0.64, cy + 4); g.lineTo(cx + cw * 0.64, cy + ch - 4);
+      g.stroke();
+
+      // logo
+      const lx = W * 0.5, ly = H * 0.5;
+      gr = g.createLinearGradient(lx - 150, ly - 150, lx + 150, ly + 150);
+      gr.addColorStop(0, "#6438e0");
+      gr.addColorStop(1, "#8460f0");
+      g.strokeStyle = gr;
+      g.lineWidth = 48;
+      g.lineCap = "butt";
+      g.beginPath();
+      g.arc(lx + 126, ly - 156, 144, Math.PI / 2, Math.PI);
+      g.stroke();
+      g.beginPath();
+      g.arc(lx - 120, ly + 156, 144, -Math.PI / 2, 0);
+      g.stroke();
+
+      // name
+      g.fillStyle = "#ffffff";
+      g.font = "500 118px 'Helvetica Neue', Arial, sans-serif";
+      g.textBaseline = "alphabetic";
+      g.fillText("Lumen", W * 0.09, H * 0.935);
+
+      // soft rim
+      g.strokeStyle = "rgba(200,185,255,0.35)";
+      g.lineWidth = 6;
+      g.strokeRect(3, 3, W - 6, H - 6);
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      return tex;
+    }
+
+    function roundedRect(w, h, r) {
+      const s = new THREE.Shape();
+      const x = -w / 2, y = -h / 2;
+      s.moveTo(x + r, y);
+      s.lineTo(x + w - r, y);
+      s.quadraticCurveTo(x + w, y, x + w, y + r);
+      s.lineTo(x + w, y + h - r);
+      s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      s.lineTo(x + r, y + h);
+      s.quadraticCurveTo(x, y + h, x, y + h - r);
+      s.lineTo(x, y + r);
+      s.quadraticCurveTo(x, y, x + r, y);
+      return s;
+    }
+
+    const CW = 2.35, CH = 3.4;
+    const cardGeo = new THREE.ExtrudeGeometry(roundedRect(CW, CH, 0.2), {
+      depth: 0.03, bevelEnabled: true, bevelThickness: 0.015, bevelSize: 0.015, bevelSegments: 4, curveSegments: 16,
+    });
+    cardGeo.center();
+    const pos = cardGeo.attributes.position, uv = cardGeo.attributes.uv;
+    for (let i = 0; i < pos.count; i++) {
+      uv.setXY(i, pos.getX(i) / CW + 0.5, pos.getY(i) / CH + 0.5);
+    }
+    const cardFace = new THREE.MeshPhysicalMaterial({
+      map: makeCardTexture(),
+      metalness: 0.25,
+      roughness: 0.3,
+      clearcoat: 1,
+      clearcoatRoughness: 0.12,
+      envMapIntensity: 0.28,
+      iridescence: 0.2,
+    });
+    const cardSide = new THREE.MeshPhysicalMaterial({ color: 0xb8a6ff, metalness: 0.8, roughness: 0.2, envMapIntensity: 1.2 });
+    const card = new THREE.Mesh(cardGeo, [cardFace, cardSide]);
+    scene.add(card);
+
+    // light bleed behind the card (pink glow)
+    const glowTex = (() => {
+      const c = document.createElement("canvas");
+      c.width = c.height = 256;
+      const g = c.getContext("2d");
+      const gr = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+      gr.addColorStop(0, "rgba(255,190,235,1)");
+      gr.addColorStop(0.35, "rgba(255,140,210,0.35)");
+      gr.addColorStop(1, "rgba(255,120,200,0)");
+      g.fillStyle = gr;
+      g.fillRect(0, 0, 256, 256);
+      const t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    })();
+    const backGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false }));
+    backGlow.scale.set(7, 5, 1);
+    backGlow.position.set(0, 0.6, -3);
+    scene.add(backGlow);
+
+    const key = new THREE.DirectionalLight(0xffd6f4, 1.6);
+    key.position.set(-3, 4, 5);
+    scene.add(key);
+    const rim = new THREE.PointLight(0xff9ad8, 30, 12);
+    rim.position.set(1.5, 0.3, -1.5);
+    scene.add(rim);
+    scene.add(new THREE.AmbientLight(0x6a4aa8, 0.6));
+
+    // ---------- water ----------
+    const WaterShader = {
+      name: "LumenWater",
+      uniforms: {
+        color: { value: null },
+        tDiffuse: { value: null },
+        textureMatrix: { value: null },
+        uTime: { value: 0 },
+      },
+      vertexShader: /* glsl */ `
+        uniform mat4 textureMatrix;
+        varying vec4 vUv;
+        varying vec3 vPos;
+        void main(){
+          vUv = textureMatrix * vec4(position, 1.0);
+          vPos = (modelMatrix * vec4(position, 1.0)).xyz;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }`,
+      fragmentShader: /* glsl */ `
+        uniform vec3 color;
+        uniform sampler2D tDiffuse;
+        uniform float uTime;
+        varying vec4 vUv;
+        varying vec3 vPos;
+        ${NOISE}
+        void main(){
+          vec2 p = vPos.xz;
+          float d = length(p * vec2(0.85, 1.6));
+          float warp = fbm3(vec3(p * 0.35, uTime * 0.12)) * 4.0;
+          float ring = sin(d * 4.2 - uTime * 1.5 + warp);
+          float atten = 1.0 / (1.0 + d * 0.18);
+          float swell = noise3(vec3(p.x * 0.25, p.y * 1.6 + uTime * 0.25, uTime * 0.1)) - 0.5;
+
+          vec2 off = vec2(ring * 0.006 * atten + swell * 0.01, ring * 0.03 * atten + swell * 0.045);
+          vec4 uv = vUv;
+          uv.xy += off * uv.w;
+          vec3 refl = pow(max(texture2DProj(tDiffuse, uv).rgb, 0.0), vec3(1.0 / 2.2));
+
+          vec3 base = vec3(0.13, 0.08, 0.27);
+          float far = smoothstep(3.0, 40.0, length(p));
+          vec3 col = mix(base, refl * vec3(0.92, 0.85, 1.0), mix(0.28, 0.8, far));
+          float band = ring * 0.5 + 0.5;
+          col *= 0.75 + band * 0.35 * atten;
+
+          // pink light pooling under the card
+          float pool = exp(-(p.x * p.x * 0.3 + (p.y + 0.2) * (p.y + 0.2) * 0.9));
+          col += vec3(1.0, 0.68, 0.88) * pool * smoothstep(0.45, 0.95, band) * 0.55;
+
+          col *= mix(1.0, 0.55, smoothstep(2.0, 9.0, vPos.z));
+
+          gl_FragColor = vec4(pow(col, vec3(2.2)), 1.0);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+        }`,
+    };
+
+    const water = new Reflector(new THREE.PlaneGeometry(400, 400), {
+      shader: WaterShader,
+      clipBias: 0.003,
+      textureWidth: window.innerWidth * Math.min(window.devicePixelRatio, 2) * 0.6,
+      textureHeight: window.innerHeight * Math.min(window.devicePixelRatio, 2) * 0.6,
+      color: 0xffffff,
+    });
+    water.rotation.x = -Math.PI / 2;
+    scene.add(water);
+
+    // ---------- post ----------
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.35, 0.7, 0.82);
+    composer.addPass(bloom);
+    composer.addPass(new OutputPass());
+
+    // ---------- layout ----------
+    const lookAt = new THREE.Vector3(0, 1.77, 0);
+    function layout() {
+      const w = window.innerWidth, h = window.innerHeight;
+      camera.aspect = w / h;
+      // on narrow screens pull the camera back so the card keeps ~60% of the width
+      // portrait screens: card ≤ 36% of the height so the copy above and below stays clear
+      const dist = camera.aspect < 1
+        ? Math.max(2.35 / (0.6 * 0.6306 * camera.aspect), 3.4 / (0.36 * 0.6306))
+        : 10;
+      camera.position.set(0, 1.4, dist);
+      camera.lookAt(lookAt.x, lookAt.y + (dist - 10) * 0.035, lookAt.z);
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+      composer.setSize(w, h);
+    }
+    layout();
+    window.addEventListener("resize", layout);
+
+    // ---------- mouse ----------
+    const mouse = new THREE.Vector2();
+    const smooth = new THREE.Vector2();
+    window.addEventListener("pointermove", (e) => {
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = (e.clientY / window.innerHeight) * 2 - 1;
+    });
+
+    // ---------- loop ----------
+    const clock = new THREE.Clock();
+    const ease = (x) => 1 - Math.pow(1 - x, 3);
+    function tick() {
+      const t = clock.getElapsedTime();
+      smooth.lerp(mouse, 0.04);
+
+      const intro = ease(Math.min(t / 2.2, 1));
+      card.position.set(0, 1.76 + Math.sin(t * 0.9) * 0.05 - (1 - intro) * 1.2, 0);
+      card.rotation.y = Math.sin(t * 0.55) * 0.16 + smooth.x * 0.22 + (1 - intro) * 0.9;
+      card.rotation.x = Math.sin(t * 0.42) * 0.035 + smooth.y * 0.1;
+      card.rotation.z = Math.sin(t * 0.35 + 1.0) * 0.03 - smooth.x * 0.02;
+      cardFace.opacity = intro;
+
+      sky.material.uniforms.uTime.value = t;
+      water.material.uniforms.uTime.value = t;
+      rim.intensity = 26 + Math.sin(t * 1.3) * 6;
+
+      composer.render();
+      requestAnimationFrame(tick);
+    }
+    tick();
+  </script>
+</body>
+</html>

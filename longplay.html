@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>long.play — Tape doesn't last</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Nunito:wght@400;500&family=Open+Sans:wght@400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/longplay.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%233150d6'/%3E%3Crect x='7' y='11' width='18' height='14' rx='3' fill='%23ffd27a'/%3E%3Cpath d='M12 4 L16 11 L20 4' fill='none' stroke='white' stroke-width='1.6'/%3E%3C/svg%3E" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <main class="hero">
+    <header class="header fade">
+      <a href="#" class="logo">long<span>.play</span></a>
+      <nav class="nav" id="site-nav">
+        <a href="#" class="pill">Services</a>
+        <a href="#" class="pill">Formats</a>
+        <a href="#" class="pill">Pricing</a>
+        <a href="#" class="pill">Contacts</a>
+      </nav>
+      <div class="header-actions">
+        <a href="#" class="pill pill--dark">Get started</a>
+        <button class="menu-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="site-nav">
+          <span></span><span></span>
+        </button>
+      </div>
+    </header>
+
+    <div class="frame fade"><i></i><i></i><i></i><i></i></div>
+
+    <h1 class="headline">
+      <span class="script rise" style="animation-delay: 0.1s">Tape doesn't last.</span>
+      <span class="sub rise" style="animation-delay: 0.35s">The players are going too.</span>
+    </h1>
+
+    <div class="content">
+      <p class="rise" style="animation-delay: 1s">
+        We scan VHS, Hi8, Super 8 and MiniDV frame by frame, correct the color
+        by hand, and send back files you'll still be able to open in twenty years.
+      </p>
+      <a href="#" class="cta rise" style="animation-delay: 1.2s">
+        Start with one tape
+        <span class="icon">
+          <svg viewBox="0 0 20 14" fill="none" stroke-width="1.6" stroke-linecap="round">
+            <defs>
+              <linearGradient id="wave" x1="0" x2="1">
+                <stop offset="0" stop-color="#7fb4ff" />
+                <stop offset="1" stop-color="#e59bff" />
+              </linearGradient>
+            </defs>
+            <path d="M2 5 C 5 2, 8 2, 10 5 S 15 8, 18 5" stroke="url(#wave)" />
+            <path d="M2 10 C 5 7, 8 7, 10 10 S 15 13, 18 10" stroke="url(#wave)" />
+          </svg>
+        </span>
+      </a>
+    </div>
+
+    <footer class="footer fade">
+      <svg viewBox="0 0 17 19" fill="rgba(255,255,255,0.5)">
+        <path d="M8.5 0 L17 3.2 V8.6 C17 13.4 13.4 17.4 8.5 19 C3.6 17.4 0 13.4 0 8.6 V3.2 Z" />
+        <rect x="7.6" y="6" width="1.8" height="5.5" rx="0.9" fill="#2a2d3d" />
+      </svg>
+      Privacy-first. No data resold.
+    </footer>
+  </main>
+
+  <script>
+    // mobile menu
+    const header = document.querySelector(".header");
+    const toggle = document.querySelector(".menu-toggle");
+    toggle.addEventListener("click", () => {
+      const open = header.classList.toggle("is-open");
+      toggle.setAttribute("aria-expanded", open);
+      toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+    });
+    document.querySelectorAll(".nav a").forEach((a) => a.addEventListener("click", () => {
+      header.classList.remove("is-open");
+      toggle.setAttribute("aria-expanded", "false");
+    }));
+  </script>
+
+  <script type="module">
+    import * as THREE from "three";
+    import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+    import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+    import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
+    import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+    import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+
+    const canvas = document.getElementById("scene");
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
+    const DPR = Math.min(window.devicePixelRatio, 1.5);
+    renderer.setPixelRatio(DPR);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.toneMapping = THREE.NoToneMapping;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 600);
+
+    // ---------- terrain height (same in JS and GLSL) ----------
+    const HEIGHT_GLSL = /* glsl */ `
+      float terrainH(vec2 p){
+        float h = 1.25 * exp(-(p.x * p.x * 0.07 + p.y * p.y * 0.16));
+        h += 0.75 * exp(-((p.x + 3.2) * (p.x + 3.2) * 0.05 + (p.y - 6.2) * (p.y - 6.2) * 0.3));
+        h += 0.3 * exp(-((p.x - 7.5) * (p.x - 7.5) * 0.035 + (p.y + 2.5) * (p.y + 2.5) * 0.09));
+        h += 0.12 * sin(p.x * 0.55) * cos(p.y * 0.45);
+        h -= 2.8 * smoothstep(3.0, 16.0, -p.y);
+        return h - 0.3;
+      }`;
+    function terrainH(x, z) {
+      const ss = (a, b, v) => { const t = Math.min(Math.max((v - a) / (b - a), 0), 1); return t * t * (3 - 2 * t); };
+      let h = 1.25 * Math.exp(-(x * x * 0.07 + z * z * 0.16));
+      h += 0.75 * Math.exp(-((x + 3.2) ** 2 * 0.05 + (z - 6.2) ** 2 * 0.3));
+      h += 0.3 * Math.exp(-((x - 7.5) ** 2 * 0.035 + (z + 2.5) ** 2 * 0.09));
+      h += 0.12 * Math.sin(x * 0.55) * Math.cos(z * 0.45);
+      h -= 2.8 * ss(3, 16, -z);
+      return h - 0.3;
+    }
+
+    const NOISE = /* glsl */ `
+      float hash2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float noise2(vec2 p){
+        vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(hash2(i), hash2(i + vec2(1, 0)), f.x), mix(hash2(i + vec2(0, 1)), hash2(i + vec2(1, 1)), f.x), f.y);
+      }
+      float fbm2(vec2 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 6; i++){ v += a * noise2(p); p = p * 2.02 + 13.1; a *= 0.5; } return v; }
+    `;
+
+    const TV_POS = new THREE.Vector3(0, terrainH(0, 0), 0);
+    const uniforms = {
+      uTime: { value: 0 },
+      uTV: { value: new THREE.Vector3(0, TV_POS.y + 0.6, 0.6) },
+      uFlicker: { value: 1 },
+    };
+
+    // ---------- sky ----------
+    const sky = new THREE.Mesh(
+      new THREE.SphereGeometry(500, 64, 32),
+      new THREE.ShaderMaterial({
+        side: THREE.BackSide,
+        depthWrite: false,
+        uniforms,
+        vertexShader: /* glsl */ `
+          varying vec3 vDir;
+          void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+        fragmentShader: /* glsl */ `
+          uniform float uTime;
+          varying vec3 vDir;
+          ${NOISE}
+          void main(){
+            vec3 d = normalize(vDir);
+            float e = d.y;
+            float az = atan(d.x, -d.z);
+
+            vec3 col = vec3(0.99, 0.74, 0.66);
+            col = mix(col, vec3(0.86, 0.62, 0.78), smoothstep(-0.06, 0.04, e));
+            col = mix(col, vec3(0.36, 0.48, 0.93), smoothstep(0.02, 0.16, e));
+            col = mix(col, vec3(0.15, 0.27, 0.86), smoothstep(0.12, 0.42, e));
+
+            // warm glow behind the hill
+            col += vec3(1.0, 0.55, 0.35) * exp(-az * az * 3.0) * exp(-abs(e + 0.06) * 14.0) * 0.35;
+
+            // soft clouds projected on a plane
+            vec2 cp = d.xz / max(e + 0.06, 0.02);
+            float c = fbm2(cp * 0.32 + vec2(uTime * 0.012, 0.0));
+            float cloud = smoothstep(0.52, 0.85, c) * smoothstep(0.02, 0.12, e) * (1.0 - smoothstep(0.35, 0.7, e));
+            col = mix(col, vec3(1.0, 0.82, 0.86), cloud * 0.55);
+            // the large soft cloud behind the headline
+            float bigShape = exp(-pow((az + 0.43) / 0.13, 2.0) - pow((e - 0.2) / 0.05, 2.0));
+            float puff = fbm2(vec2(az * 14.0, e * 30.0) + vec2(uTime * 0.02, 0.0));
+            float bigCloud = smoothstep(0.3, 0.85, bigShape * (0.15 + puff * 1.35)) * smoothstep(0.08, 0.3, bigShape);
+            col = mix(col, mix(vec3(0.98, 0.84, 0.9), vec3(1.0, 0.9, 0.86), smoothstep(0.17, 0.23, e)), bigCloud * 0.85);
+
+            // distant mountains
+            float ridge = -0.065 + fbm2(vec2(az * 3.5, 1.7)) * 0.05 + fbm2(vec2(az * 14.0, 4.0)) * 0.012;
+            float m = smoothstep(ridge + 0.002, ridge - 0.002, e);
+            vec3 mcol = mix(vec3(0.42, 0.48, 0.72), vec3(0.24, 0.29, 0.52), smoothstep(ridge, ridge - 0.05, e));
+            col = mix(col, mcol, m);
+
+            float ridge2 = -0.09 + fbm2(vec2(az * 5.0, 9.0)) * 0.045;
+            float m2 = smoothstep(ridge2 + 0.002, ridge2 - 0.002, e);
+            col = mix(col, vec3(0.18, 0.22, 0.42), m2);
+
+            gl_FragColor = vec4(pow(col, vec3(2.2)), 1.0);
+          }`,
+      })
+    );
+    scene.add(sky);
+
+    // ---------- ground ----------
+    const groundGeo = new THREE.PlaneGeometry(80, 60, 200, 150);
+    groundGeo.rotateX(-Math.PI / 2);
+    groundGeo.translate(0, 0, -18);
+    {
+      const p = groundGeo.attributes.position;
+      for (let i = 0; i < p.count; i++) p.setY(i, terrainH(p.getX(i), p.getZ(i)));
+      groundGeo.computeVertexNormals();
+    }
+    const ground = new THREE.Mesh(
+      groundGeo,
+      new THREE.ShaderMaterial({
+        uniforms,
+        vertexShader: /* glsl */ `
+          varying vec3 vW;
+          void main(){ vW = (modelMatrix * vec4(position, 1.0)).xyz; gl_Position = projectionMatrix * viewMatrix * vec4(vW, 1.0); }`,
+        fragmentShader: /* glsl */ `
+          uniform vec3 uTV;
+          varying vec3 vW;
+          void main(){
+            vec3 col = vec3(0.05, 0.08, 0.1);
+            float d = distance(vW, uTV);
+            col += vec3(0.9, 0.5, 0.15) * exp(-d * d * 0.35) * 0.6;
+            float far = smoothstep(10.0, 40.0, distance(vW, cameraPosition));
+            col = mix(col, vec3(0.18, 0.22, 0.4), far);
+            gl_FragColor = vec4(pow(col, vec3(2.2)), 1.0);
+          }`,
+      })
+    );
+    scene.add(ground);
+
+    // ---------- grass ----------
+    function makeGrass(count, area, minS, maxS, bias) {
+      const blade = new THREE.PlaneGeometry(1, 1, 1, 5);
+      blade.translate(0, 0.5, 0);
+      const bp = blade.attributes.position;
+      for (let i = 0; i < bp.count; i++) {
+        const y = bp.getY(i);
+        bp.setX(i, bp.getX(i) * (1 - y * 0.92));
+      }
+      const geo = new THREE.InstancedBufferGeometry();
+      geo.index = blade.index;
+      geo.setAttribute("position", blade.attributes.position);
+      geo.setAttribute("uv", blade.attributes.uv);
+      const offs = new Float32Array(count * 4);
+      const rnd = new Float32Array(count);
+      let n = 0;
+      while (n < count) {
+        const x = area.x0 + Math.random() * (area.x1 - area.x0);
+        const z = area.z0 + Math.random() * (area.z1 - area.z0);
+        if (bias && !bias(x, z)) continue;
+        offs[n * 4] = x;
+        offs[n * 4 + 1] = z;
+        offs[n * 4 + 2] = Math.random() * Math.PI;
+        offs[n * 4 + 3] = minS + Math.random() * (maxS - minS);
+        rnd[n] = Math.random();
+        n++;
+      }
+      geo.setAttribute("aOffset", new THREE.InstancedBufferAttribute(offs, 4));
+      geo.setAttribute("aRand", new THREE.InstancedBufferAttribute(rnd, 1));
+      geo.instanceCount = count;
+
+      const mat = new THREE.ShaderMaterial({
+        side: THREE.DoubleSide,
+        uniforms,
+        vertexShader: /* glsl */ `
+          attribute vec4 aOffset;
+          attribute float aRand;
+          uniform float uTime;
+          varying float vY;
+          varying float vRand;
+          varying vec3 vW;
+          ${HEIGHT_GLSL}
+          void main(){
+            float y01 = position.y;
+            float s = aOffset.w;
+            vec3 p = position;
+            p.x *= 0.05 * mix(0.7, 1.4, aRand);
+            p.y *= s;
+            float c = cos(aOffset.z), sn = sin(aOffset.z);
+            p.xz = vec2(p.x * c - p.z * sn, p.x * sn + p.z * c);
+            vec2 wp = aOffset.xy;
+            float w = sin(uTime * 1.2 + wp.x * 0.45 + wp.y * 0.3) * 0.6 + sin(uTime * 2.3 + wp.x * 1.6 + aRand * 6.0) * 0.25;
+            vec2 bend = vec2(0.10 + w * 0.12, 0.04 + w * 0.05) + (vec2(aRand, fract(aRand * 7.31)) - 0.5) * 0.35;
+            bend *= y01 * y01 * s;
+            p.xz += bend;
+            p.y -= length(bend) * 0.35 * y01;
+            vW = vec3(wp.x + p.x, terrainH(wp) + p.y, wp.y + p.z);
+            vY = y01;
+            vRand = aRand;
+            gl_Position = projectionMatrix * viewMatrix * vec4(vW, 1.0);
+          }`,
+        fragmentShader: /* glsl */ `
+          uniform vec3 uTV;
+          uniform float uFlicker;
+          varying float vY;
+          varying float vRand;
+          varying vec3 vW;
+          void main(){
+            vec3 base = vec3(0.03, 0.06, 0.08);
+            vec3 mid = mix(vec3(0.04, 0.10, 0.15), vec3(0.08, 0.14, 0.13), vRand);
+            vec3 tip = mix(vec3(0.22, 0.3, 0.3), vec3(0.72, 0.56, 0.22), vRand * vRand * vRand);
+            vec3 col = mix(base, mid, smoothstep(0.0, 0.45, vY));
+            col = mix(col, tip, smoothstep(0.5, 1.0, vY) * mix(0.15, 0.85, vRand * vRand));
+
+            float d = distance(vW, uTV);
+            float L = exp(-d * d * 0.3) * uFlicker;
+            col += vec3(1.0, 0.6, 0.2) * L * (0.15 + vY) * 0.9;
+            // warm backlight from the sunset sky
+            col += vec3(0.5, 0.32, 0.14) * pow(vY, 4.0) * 0.18;
+
+            float far = smoothstep(9.0, 32.0, distance(vW, cameraPosition));
+            col = mix(col, vec3(0.25, 0.3, 0.5), far * 0.8);
+            gl_FragColor = vec4(pow(col, vec3(2.2)), 1.0);
+          }`,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.frustumCulled = false;
+      return mesh;
+    }
+
+    const isSmall = window.innerWidth < 800;
+    const mainCount = isSmall ? 45000 : 110000;
+    // main field, denser near the camera / TV
+    scene.add(makeGrass(mainCount, { x0: -16, x1: 16, z0: -9, z1: 6.5 }, 0.35, 0.7, (x, z) => {
+      const dTV = Math.hypot(x, z);
+      return Math.random() < (dTV < 4 ? 1 : 0.55);
+    }));
+    // tall foreground clumps (become blurry with depth of field)
+    scene.add(makeGrass(isSmall ? 3000 : 7000, { x0: -9, x1: 9, z0: 4.5, z1: 8 }, 0.9, 1.6, (x, z) => {
+      const left = Math.exp(-((x + 3) ** 2) * 0.06);
+      const right = Math.exp(-((x - 6) ** 2) * 0.1) * 0.6;
+      return Math.random() < Math.max(left, right);
+    }));
+
+    // ---------- out-of-focus grass in front of the lens ----------
+    function makeLensGrass(count) {
+      const blade = new THREE.PlaneGeometry(1, 1, 1, 5);
+      blade.translate(0, 0.5, 0);
+      const bp = blade.attributes.position;
+      for (let i = 0; i < bp.count; i++) bp.setX(i, bp.getX(i) * (1 - bp.getY(i) * 0.9));
+      const geo = new THREE.InstancedBufferGeometry();
+      geo.index = blade.index;
+      geo.setAttribute("position", blade.attributes.position);
+      const data = new Float32Array(count * 4);
+      for (let i = 0; i < count; i++) {
+        // mostly on the left, a few on the right edge
+        const left = Math.random() < 0.82;
+        const u = Math.pow(Math.random(), left ? 1.3 : 1.8);
+        data[i * 4] = left ? -1.05 + u * 0.95 : 1.05 - u * 0.45; // horizontal position (x / visible half width)
+        data[i * 4 + 1] = 3.0 + Math.random() * 1.6; // depth
+        data[i * 4 + 2] = Math.random();
+        // height: tall on the far left, shorter towards the middle
+        const edge = 1 - u;
+        data[i * 4 + 3] = (left ? 0.3 + edge * 0.55 : 0.15 + edge * 0.3) * (0.75 + Math.random() * 0.4);
+      }
+      geo.setAttribute("aData", new THREE.InstancedBufferAttribute(data, 4));
+      geo.instanceCount = count;
+      const mat = new THREE.ShaderMaterial({
+        side: THREE.DoubleSide,
+        uniforms: { uTime: uniforms.uTime, uHalf: { value: new THREE.Vector2(1, 1) }, uScale: { value: 1 } },
+        vertexShader: /* glsl */ `
+          attribute vec4 aData;
+          uniform float uTime;
+          uniform vec2 uHalf; // tan(fov/2) * aspect, tan(fov/2)
+          uniform float uScale;
+          varying float vY;
+          varying float vR;
+          void main(){
+            float z = aData.y;
+            float y01 = position.y;
+            vec3 p = vec3(aData.x * uHalf.x * z, -uHalf.y * z - 0.05, -z);
+            float w = sin(uTime * 1.1 + aData.z * 6.28) * 0.5 + sin(uTime * 2.0 + aData.x * 3.0) * 0.2;
+            float hgt = aData.w * uScale * uHalf.y * z * 1.05;
+            p.x += position.x * 0.07 + (aData.z - 0.5 + w * 0.15) * y01 * y01 * hgt * 0.5;
+            p.y += y01 * hgt;
+            vY = y01;
+            vR = aData.z;
+            gl_Position = projectionMatrix * vec4(p, 1.0);
+          }`,
+        fragmentShader: /* glsl */ `
+          varying float vY;
+          varying float vR;
+          void main(){
+            vec3 col = mix(vec3(0.05, 0.07, 0.06), mix(vec3(0.32, 0.32, 0.18), vec3(0.62, 0.5, 0.24), vR), smoothstep(0.1, 1.0, vY));
+            gl_FragColor = vec4(pow(col, vec3(2.2)), 1.0);
+          }`,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.frustumCulled = false;
+      mesh.renderOrder = 2;
+      return mesh;
+    }
+    const lensGrass = makeLensGrass(isSmall ? 700 : 1400);
+    scene.add(lensGrass);
+
+    // ---------- TV ----------
+    const tv = new THREE.Group();
+    const body = new THREE.Mesh(
+      new RoundedBoxGeometry(1.75, 1.32, 1.05, 6, 0.16),
+      new THREE.MeshStandardMaterial({ color: 0x1630c8, emissive: 0x0b1a9a, emissiveIntensity: 0.55, roughness: 0.4, metalness: 0.1 })
+    );
+    tv.add(body);
+    const front = new THREE.Mesh(
+      new RoundedBoxGeometry(1.7, 1.27, 0.08, 6, 0.04),
+      new THREE.MeshStandardMaterial({ color: 0x05060c, roughness: 0.7 })
+    );
+    front.position.z = 0.5;
+    tv.add(front);
+
+    const screenMat = new THREE.ShaderMaterial({
+      uniforms,
+      vertexShader: /* glsl */ `
+        varying vec2 vUv;
+        void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      fragmentShader: /* glsl */ `
+        uniform float uTime;
+        uniform float uFlicker;
+        varying vec2 vUv;
+        void main(){
+          vec2 q = vUv - 0.5;
+          float r = length(q * vec2(1.0, 1.25));
+          vec3 col = mix(vec3(3.2, 2.8, 2.0), vec3(1.6, 0.75, 0.2), smoothstep(0.12, 0.6, r));
+          col *= 0.94 + 0.06 * sin(vUv.y * 420.0 + uTime * 8.0);
+          col *= uFlicker;
+          // rounded screen corners
+          vec2 b = abs(q) - vec2(0.43, 0.42);
+          float sd = length(max(b, 0.0)) - 0.07;
+          if (sd > 0.0) discard;
+          gl_FragColor = vec4(col, 1.0);
+        }`,
+    });
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.42, 1.05), screenMat);
+    screen.position.set(-0.04, 0.0, 0.545);
+    tv.add(screen);
+
+    const antMat = new THREE.MeshStandardMaterial({ color: 0x111320, roughness: 0.4, metalness: 0.6 });
+    for (const side of [-1, 1]) {
+      const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.016, 1.1, 8), antMat);
+      ant.geometry.translate(0, 0.55, 0);
+      ant.position.set(side * 0.05, 0.62, 0.1);
+      ant.rotation.z = -side * 0.36;
+      ant.rotation.x = -0.08;
+      tv.add(ant);
+    }
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8), antMat);
+    knob.position.set(0, 0.66, 0.1);
+    tv.add(knob);
+
+    tv.position.set(0, TV_POS.y + 0.6, 0);
+    tv.rotation.set(0.02, -0.08, -0.05);
+    scene.add(tv);
+
+    const hemi = new THREE.HemisphereLight(0x4a6cff, 0x0a1030, 0.9);
+    scene.add(hemi);
+    const sun = new THREE.DirectionalLight(0x9fb0ff, 0.5);
+    sun.position.set(-3, 6, 4);
+    scene.add(sun);
+
+    // ---------- floating snow / bokeh ----------
+    function makeFlakes(count, box, size, color, speed) {
+      const geo = new THREE.BufferGeometry();
+      const p = new Float32Array(count * 3);
+      const r = new Float32Array(count);
+      for (let i = 0; i < count; i++) {
+        p[i * 3] = box.x0 + Math.random() * (box.x1 - box.x0);
+        p[i * 3 + 1] = box.y0 + Math.random() * (box.y1 - box.y0);
+        p[i * 3 + 2] = box.z0 + Math.random() * (box.z1 - box.z0);
+        r[i] = Math.random();
+      }
+      geo.setAttribute("position", new THREE.BufferAttribute(p, 3));
+      geo.setAttribute("aRand", new THREE.BufferAttribute(r, 1));
+      const mat = new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: true,
+        blending: THREE.AdditiveBlending,
+        uniforms: {
+          uTime: uniforms.uTime,
+          uSize: { value: size * DPR },
+          uColor: { value: new THREE.Color(...color) },
+          uSpeed: { value: speed },
+          uH: { value: box.y1 - box.y0 },
+          uY0: { value: box.y0 },
+        },
+        vertexShader: /* glsl */ `
+          attribute float aRand;
+          uniform float uTime, uSize, uSpeed, uH, uY0;
+          varying float vA;
+          void main(){
+            vec3 p = position;
+            p.y = uY0 + mod(p.y - uY0 - uTime * uSpeed * (0.5 + aRand), uH);
+            p.x += sin(uTime * 0.4 + aRand * 20.0) * 0.4;
+            p.z += cos(uTime * 0.3 + aRand * 13.0) * 0.3;
+            vec4 mv = modelViewMatrix * vec4(p, 1.0);
+            gl_PointSize = uSize * (0.5 + aRand) / -mv.z;
+            vA = 0.55 + 0.45 * sin(uTime * 2.0 + aRand * 40.0);
+            gl_Position = projectionMatrix * mv;
+          }`,
+        fragmentShader: /* glsl */ `
+          uniform vec3 uColor;
+          varying float vA;
+          void main(){
+            float d = length(gl_PointCoord - 0.5);
+            if (d > 0.5) discard;
+            float a = smoothstep(0.5, 0.32, d) * 0.65 + smoothstep(0.5, 0.42, d) * smoothstep(0.3, 0.45, d) * 0.35;
+            gl_FragColor = vec4(uColor * a * vA, 1.0);
+          }`,
+      });
+      const pts = new THREE.Points(geo, mat);
+      pts.frustumCulled = false;
+      return pts;
+    }
+    scene.add(makeFlakes(900, { x0: -14, x1: 14, y0: -1, y1: 9, z0: -10, z1: 6 }, 80, [0.75, 0.8, 1.0], 0.12));
+    scene.add(makeFlakes(120, { x0: -6, x1: 6, y0: 0.3, y1: 2.2, z0: -2, z1: 4 }, 30, [0.5, 0.95, 1.2], 0.05));
+
+    // ---------- post: depth of field + bloom ----------
+    let rt = null;
+    function makeTarget(w, h) {
+      if (rt) rt.dispose();
+      rt = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType });
+      rt.depthTexture = new THREE.DepthTexture(w, h);
+      rt.depthTexture.type = THREE.UnsignedIntType;
+      return rt;
+    }
+    makeTarget(window.innerWidth * DPR, window.innerHeight * DPR);
+
+    const dofPass = new ShaderPass(new THREE.ShaderMaterial({
+      uniforms: {
+        tColor: { value: rt.texture },
+        tDepth: { value: rt.depthTexture },
+        uNear: { value: camera.near },
+        uFar: { value: camera.far },
+        uFocus: { value: 9.5 },
+        uRes: { value: new THREE.Vector2() },
+      },
+      vertexShader: /* glsl */ `
+        varying vec2 vUv;
+        void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      fragmentShader: /* glsl */ `
+        #include <packing>
+        uniform sampler2D tColor, tDepth;
+        uniform float uNear, uFar, uFocus;
+        uniform vec2 uRes;
+        varying vec2 vUv;
+        float viewZ(vec2 uv){ return -perspectiveDepthToViewZ(texture2D(tDepth, uv).x, uNear, uFar); }
+        float coc(float z){
+          float c = max(abs(z - uFocus) - 1.8, 0.0) / z;
+          return clamp(c * 1.5, 0.0, 1.0);
+        }
+        void main(){
+          float z = viewZ(vUv);
+          float r = coc(z) * 11.0;
+          vec3 acc = texture2D(tColor, vUv).rgb;
+          float wsum = 1.0;
+          const float GA = 2.39996;
+          for (int i = 1; i < 40; i++){
+            float fi = float(i);
+            float rr = sqrt(fi / 40.0) * r;
+            vec2 o = vec2(cos(fi * GA), sin(fi * GA)) * rr / uRes;
+            vec2 uv2 = vUv + o;
+            float z2 = viewZ(uv2);
+            float r2 = coc(z2) * 11.0;
+            // nearer blurry samples may spread over sharp areas; far samples only if their blur covers us
+            float w = (z2 < z) ? smoothstep(rr - 1.0, rr + 1.0, r2) + 0.0 : 1.0;
+            w = max(w, smoothstep(rr - 1.0, rr + 1.0, min(r, r2)));
+            acc += texture2D(tColor, uv2).rgb * w;
+            wsum += w;
+          }
+          gl_FragColor = vec4(acc / wsum, 1.0);
+        }`,
+    }), "tUnused");
+
+    const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType }));
+    composer.addPass(dofPass);
+    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.45, 0.3, 1.0);
+    composer.addPass(bloom);
+    composer.addPass(new OutputPass());
+
+    function layout() {
+      const w = window.innerWidth, h = window.innerHeight;
+      camera.aspect = w / h;
+      camera.fov = camera.aspect < 1 ? 58 : 40;
+      camera.updateProjectionMatrix();
+      const th = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+      lensGrass.material.uniforms.uHalf.value.set(th * camera.aspect, th);
+      lensGrass.material.uniforms.uScale.value = camera.aspect < 1 ? 0.55 : 1;
+      renderer.setSize(w, h);
+      composer.setSize(w, h);
+      makeTarget(Math.round(w * DPR), Math.round(h * DPR));
+      dofPass.uniforms.tColor.value = rt.texture;
+      dofPass.uniforms.tDepth.value = rt.depthTexture;
+      dofPass.uniforms.uRes.value.set(w * DPR, h * DPR);
+    }
+    layout();
+    window.addEventListener("resize", layout);
+
+    const mouse = new THREE.Vector2(), smooth = new THREE.Vector2();
+    window.addEventListener("pointermove", (e) => {
+      mouse.set((e.clientX / window.innerWidth) * 2 - 1, (e.clientY / window.innerHeight) * 2 - 1);
+    });
+
+    const clock = new THREE.Clock();
+    const target = new THREE.Vector3(0, TV_POS.y + 1.05, 0);
+    function tick() {
+      const t = clock.getElapsedTime();
+      uniforms.uTime.value = t;
+      smooth.lerp(mouse, 0.03);
+
+      // slow orbit: starts front-on, then drifts to show the side of the TV
+      const intro = 1 - Math.exp(-t * 1.1);
+      const a = intro * 0.42 + Math.sin(t * 0.18) * 0.12 + smooth.x * 0.12;
+      const R = 9.5;
+      camera.position.set(Math.sin(a) * R, 1.75 - smooth.y * 0.25, Math.cos(a) * R);
+      camera.lookAt(target);
+      dofPass.uniforms.uFocus.value = R;
+
+      const flicker = 0.92 + 0.05 * Math.sin(t * 9.0) + 0.03 * Math.sin(t * 23.0);
+      uniforms.uFlicker.value = flicker;
+
+      renderer.setRenderTarget(rt);
+      renderer.render(scene, camera);
+      renderer.setRenderTarget(null);
+      composer.render();
+      requestAnimationFrame(tick);
+    }
+    tick();
+  </script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  min-height: 100vh;
+  font-family: "Geist", sans-serif;
+  background: #0b0c14;
+  color: #f2f3f8;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 80px 24px;
+}
+
+.eyebrow {
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8a8ea3;
+}
+
+h1 {
+  margin: 10px 0 12px;
+  font-size: clamp(40px, 6vw, 72px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.lead {
+  color: #a5a9bb;
+  font-size: 17px;
+}
+
+.grid {
+  margin-top: 56px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 8px;
+  min-height: 340px;
+  padding: 26px;
+  border-radius: 18px;
+  overflow: hidden;
+  color: #fff;
+  text-decoration: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1), border-color 0.4s;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.card--lumen {
+  background: radial-gradient(ellipse at 50% 70%, #e59bd6 0%, #6a46a8 30%, #241a5c 65%, #120c2e 100%);
+}
+
+.card--longplay {
+  background: linear-gradient(180deg, #2f4fd8 0%, #6c84ea 45%, #f2b6ad 62%, #3a4a2a 63%, #1d2a22 100%);
+}
+
+.card--noema {
+  background: radial-gradient(circle at 50% 40%, #9fb4ff 0%, #2c45b5 18%, #0e1846 50%, #050815 100%);
+}
+
+.num {
+  position: absolute;
+  top: 24px;
+  left: 26px;
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.name {
+  font-size: 30px;
+  font-weight: 500;
+}
+
+.desc {
+  font-size: 15px;
+  opacity: 0.8;
+  max-width: 260px;
+}
